@@ -1,162 +1,174 @@
-import React, { useState, useEffect } from "react";
-import "./App.css";
+import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
+import { Calendar } from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+import { Trash2 } from 'lucide-react';
 
 function App() {
-  const [trades, setTrades] = useState([]);
-  const [form, setForm] = useState({
-    symbol: "",
-    entry: "",
-    exit: "",
-    quantity: "",
-    charges: 70,
-    notes: "",
-    date: new Date().toISOString().split("T")[0],
-  });
+  const [symbol, setSymbol] = useState('');
+  const [entry, setEntry] = useState('');
+  const [exit, setExit] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [charges, setCharges] = useState(70);
+  const [notes, setNotes] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [trades, setTrades] = useState({});
+  const [deployedAmount, setDeployedAmount] = useState('');
+  const [withdrawnAmount, setWithdrawnAmount] = useState('');
 
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const formattedDate = format(selectedDate, 'yyyy-MM-dd');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const calculatePnL = () => {
+    const ent = parseFloat(entry);
+    const ex = parseFloat(exit);
+    const qty = parseInt(quantity);
+    const chg = parseFloat(charges);
+    if (!isNaN(ent) && !isNaN(ex) && !isNaN(qty)) {
+      return ((ex - ent) * qty - chg).toFixed(2);
+    }
+    return '';
   };
 
   const handleAddTrade = () => {
-    const profit =
-      (parseFloat(form.exit) - parseFloat(form.entry)) *
-        parseFloat(form.quantity) -
-      parseFloat(form.charges);
-
+    const pnl = calculatePnL();
     const newTrade = {
-      ...form,
-      profit,
-      id: Date.now(),
+      symbol,
+      entry,
+      exit,
+      quantity,
+      charges,
+      notes,
+      pnl,
     };
-
-    setTrades((prev) => [...prev, newTrade]);
-    setForm({
-      symbol: "",
-      entry: "",
-      exit: "",
-      quantity: "",
-      charges: 70,
-      notes: "",
-      date: form.date,
-    });
+    const updatedTrades = {
+      ...trades,
+      [formattedDate]: [...(trades[formattedDate] || []), newTrade],
+    };
+    setTrades(updatedTrades);
+    setSymbol('');
+    setEntry('');
+    setExit('');
+    setQuantity('');
+    setCharges(70);
+    setNotes('');
   };
 
-  const filteredTrades = trades.filter((trade) => trade.date === selectedDate);
+  const handleDeleteTrade = (index) => {
+    const updatedTrades = {
+      ...trades,
+      [formattedDate]: trades[formattedDate].filter((_, i) => i !== index),
+    };
+    setTrades(updatedTrades);
+  };
 
-  const deployedAmount = filteredTrades.reduce(
-    (sum, t) => sum + parseFloat(t.entry) * parseFloat(t.quantity),
-    0
-  );
-
-  const todaysProfit = filteredTrades.reduce((sum, t) => sum + t.profit, 0);
-  const overallProfit = trades.reduce((sum, t) => sum + t.profit, 0);
+  const todaysTrades = trades[formattedDate] || [];
+  const todaysProfit = todaysTrades.reduce((sum, trade) => sum + parseFloat(trade.pnl), 0).toFixed(2);
+  const overallProfit = Object.values(trades).flat().reduce((sum, trade) => sum + parseFloat(trade.pnl), 0).toFixed(2);
 
   return (
-    <div className="app-container">
-      <h1>Trading Journal</h1>
+    <div className="p-6 font-sans min-h-screen bg-gradient-to-br from-blue-100 to-white text-gray-800">
+      <h1 className="text-4xl font-bold text-center mb-6 text-blue-800">Trading Journal</h1>
 
-      <div className="form">
-        <input
-          name="symbol"
-          value={form.symbol}
-          onChange={handleChange}
-          placeholder="Symbol"
-        />
-        <input
-          name="entry"
-          type="number"
-          value={form.entry}
-          onChange={handleChange}
-          placeholder="Entry Price"
-        />
-        <input
-          name="exit"
-          type="number"
-          value={form.exit}
-          onChange={handleChange}
-          placeholder="Exit Price"
-        />
-        <input
-          name="quantity"
-          type="number"
-          value={form.quantity}
-          onChange={handleChange}
-          placeholder="Quantity"
-        />
-        <input
-          name="charges"
-          type="number"
-          value={form.charges}
-          onChange={handleChange}
-          placeholder="Charges (Default ₹70)"
-        />
-        <input
-          name="notes"
-          value={form.notes}
-          onChange={handleChange}
-          placeholder="Notes"
-        />
-        <input
-          name="date"
-          type="date"
-          value={form.date}
-          onChange={handleChange}
-        />
-        <button onClick={handleAddTrade}>Add Trade</button>
+      <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex flex-col">
+              Symbol
+              <input value={symbol} onChange={e => setSymbol(e.target.value)} className="rounded border p-2" />
+            </label>
+            <label className="flex flex-col">
+              Entry
+              <input value={entry} onChange={e => setEntry(e.target.value)} type="number" className="rounded border p-2" />
+            </label>
+            <label className="flex flex-col">
+              Exit
+              <input value={exit} onChange={e => setExit(e.target.value)} type="number" className="rounded border p-2" />
+            </label>
+            <label className="flex flex-col">
+              Quantity
+              <input value={quantity} onChange={e => setQuantity(e.target.value)} type="number" className="rounded border p-2" />
+            </label>
+            <label className="flex flex-col">
+              Charges
+              <input value={charges} onChange={e => setCharges(e.target.value)} type="number" className="rounded border p-2" />
+            </label>
+            <label className="flex flex-col">
+              Profit/Loss
+              <input value={calculatePnL()} readOnly className="rounded border p-2 bg-gray-100" />
+            </label>
+          </div>
+
+          <label className="flex flex-col">
+            Notes
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} className="rounded border p-2" />
+          </label>
+
+          <button onClick={handleAddTrade} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+            Add Trade
+          </button>
+        </div>
+
+        <div>
+          <Calendar onChange={setSelectedDate} value={selectedDate} />
+        </div>
       </div>
 
-      <div className="calendar">
-        <label>Select Date:</label>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-        />
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+        <label className="flex flex-col">
+          Deployed Amount
+          <input value={deployedAmount} onChange={e => setDeployedAmount(e.target.value)} className="rounded border p-2" />
+        </label>
+        <label className="flex flex-col">
+          Withdrawn Amount
+          <input value={withdrawnAmount} onChange={e => setWithdrawnAmount(e.target.value)} className="rounded border p-2" />
+        </label>
+        <label className="flex flex-col">
+          Today’s Profit
+          <input value={todaysProfit} readOnly className="rounded border p-2 bg-green-100" />
+        </label>
+        <label className="flex flex-col">
+          Overall Profit
+          <input value={overallProfit} readOnly className="rounded border p-2 bg-green-100" />
+        </label>
       </div>
 
-      <div className="summary-table">
-        <h2>Summary</h2>
-        <p><strong>Deployed Amount:</strong> ₹{deployedAmount.toFixed(2)}</p>
-        <p><strong>Today's Profit:</strong> ₹{todaysProfit.toFixed(2)}</p>
-        <p><strong>Overall Profit:</strong> ₹{overallProfit.toFixed(2)}</p>
-      </div>
-
-      <div className="trade-table">
-        <h2>Trades for {selectedDate}</h2>
-        <table>
-          <thead>
+      <div className="overflow-x-auto">
+        <h2 className="text-xl font-semibold mb-2 text-blue-700">Trades for {formattedDate}</h2>
+        <table className="min-w-full bg-white shadow-md rounded overflow-hidden">
+          <thead className="bg-blue-100 text-blue-800">
             <tr>
-              <th>Symbol</th>
-              <th>Entry</th>
-              <th>Exit</th>
-              <th>Quantity</th>
-              <th>Charges</th>
-              <th>Profit</th>
-              <th>Notes</th>
+              <th className="px-4 py-2">Symbol</th>
+              <th className="px-4 py-2">Entry</th>
+              <th className="px-4 py-2">Exit</th>
+              <th className="px-4 py-2">Qty</th>
+              <th className="px-4 py-2">Charges</th>
+              <th className="px-4 py-2">P/L</th>
+              <th className="px-4 py-2">Notes</th>
+              <th className="px-4 py-2">Delete</th>
             </tr>
           </thead>
           <tbody>
-            {filteredTrades.map((t) => (
-              <tr key={t.id}>
-                <td>{t.symbol}</td>
-                <td>{t.entry}</td>
-                <td>{t.exit}</td>
-                <td>{t.quantity}</td>
-                <td>{t.charges}</td>
-                <td
-                  style={{ color: t.profit >= 0 ? "green" : "red" }}
-                >{`₹${t.profit.toFixed(2)}`}</td>
-                <td>{t.notes}</td>
+            {todaysTrades.map((trade, index) => (
+              <tr key={index} className="text-center hover:bg-blue-50">
+                <td className="border px-4 py-2">{trade.symbol}</td>
+                <td className="border px-4 py-2">{trade.entry}</td>
+                <td className="border px-4 py-2">{trade.exit}</td>
+                <td className="border px-4 py-2">{trade.quantity}</td>
+                <td className="border px-4 py-2">{trade.charges}</td>
+                <td className="border px-4 py-2">{trade.pnl}</td>
+                <td className="border px-4 py-2">{trade.notes}</td>
+                <td className="border px-4 py-2">
+                  <button onClick={() => handleDeleteTrade(index)} className="text-red-500 hover:text-red-700">
+                    <Trash2 size={18} />
+                  </button>
+                </td>
               </tr>
             ))}
+            {todaysTrades.length === 0 && (
+              <tr>
+                <td colSpan="8" className="text-center p-4 text-gray-500">No trades for selected date</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
